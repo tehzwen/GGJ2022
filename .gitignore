@@ -58,3 +58,9 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# S3 utility assets
+DownloadedAssets/*
+!DownloadedAssets/.gitkeep
+
+UploadAssets/*
+!UploadAssets/.gitkeep
