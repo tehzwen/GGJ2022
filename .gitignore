@@ -64,3 +64,4 @@ DownloadedAssets/*
 
 UploadAssets/*
 !UploadAssets/.gitkeep
+UserSettings

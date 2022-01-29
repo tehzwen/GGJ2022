@@ -39,7 +39,7 @@ class AssetHandler:
 
 
 def main():
-    BUCKET_NAME = ""
+    BUCKET_NAME = "macs-global-game-jam-2022"
     parser = argparse.ArgumentParser(description='S3 Uploader for gamejam purposes')
     parser.add_argument("-u", "--upload", action="store_true", help="option for uploading via cli")
     parser.add_argument("-d", "--download", action="store_true", help="option for downloading via cli")

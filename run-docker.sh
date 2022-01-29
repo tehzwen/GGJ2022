@@ -1,6 +1,6 @@
 #!/bin/bash
 
-COMMAND="download"
+COMMAND="upload"
 ACCESS_KEY_ID=""
 ACCESS_KEY_SECRET=""
 
