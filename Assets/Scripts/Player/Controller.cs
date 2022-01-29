@@ -21,10 +21,14 @@ namespace Player
         private Mode _mode;
         private Vector2 _currentMove;
         private Dictionary<int, GameObject> _currentInteractables;
+        private Dictionary<string, QuestReception> _currentQuests;
+        private List<string> _inventory;
         private GameObject _nearestInteractable;
         void Start()
         {
             _currentInteractables = new Dictionary<int, GameObject>();
+            _currentQuests = new Dictionary<string, QuestReception>();
+            _inventory = new List<string>();
             _health = 1.0f;
             _mode = Mode.HUMAN;
         }
@@ -69,6 +73,8 @@ namespace Player
                 NPC.Interactable interactScript = _nearestInteractable.GetComponent<NPC.Interactable>();
                 interactScript.Prompt();
             }
+
+            QuestUpdate(); // checks for any quests that are complete
         }
 
         private float _getMaxHealth()
@@ -99,7 +105,7 @@ namespace Player
 
         public void Attack(GameObject other)
         {
-            
+
         }
 
         public bool TakeDamage(float damage)
@@ -134,6 +140,83 @@ namespace Player
             //end game?
         }
 
+        // Quests & dialogue
+        struct QuestReception
+        {
+            public GameObject giver;
+            public Dialogue.Quest quest;
+
+            public QuestReception(GameObject questGiver, Dialogue.Quest questValue)
+            {
+                giver = questGiver;
+                quest = questValue;
+            }
+        }
+        public void GetQuest(GameObject giver, Dialogue.Quest quest)
+        {
+            Debug.Log(quest.GetCurrentStage().dialogue);
+            QuestReception q = new QuestReception(giver, quest);
+
+            if (!_currentQuests.ContainsKey(quest.name))
+            {
+                Debug.Log(string.Format("Received quest {0}!", quest.name));
+                _currentQuests.Add(quest.name, q);
+            }
+        }
+
+        // helper method to check on status of our quests
+        public void QuestUpdate()
+        {
+            foreach (KeyValuePair<string, QuestReception> q in _currentQuests)
+            {
+                if (!q.Value.quest.complete)
+                {
+                    Dialogue.Stage tempStage = q.Value.quest.GetCurrentStage();
+                    if (tempStage.task.type == Dialogue.TaskType.GATHER &&
+                        _inventory.Contains(tempStage.task.objectName))
+                    {
+                        tempStage.complete = true;
+
+                        // We can mark this stage as done
+                        if (q.Value.quest.IncreaseStage())
+                        {
+                            // can have a pop up showing the quest is complete
+                            q.Value.quest.complete = true;
+                        }
+                    }
+                    // need to add other conditions for other task types here
+                    // ie maybe for go to we spawn a circle collider in world 
+                    // talk to flags the npc for next time talked to
+                    // build looks for the "built" items in the world?
+                }
+            }
+        }
+
+        public void AddItemToInventory(string itemName)
+        {
+            this._inventory.Add(itemName);
+            Debug.Log(string.Format("Added {0} to inventory", itemName));
+        }
+
+        public void RemoveItemFromInventory(string itemName)
+        {
+            this._inventory.Remove(itemName);
+        }
+
+        public bool TryHandInQuest(GameObject giver)
+        {
+            foreach (KeyValuePair<string, QuestReception> q in _currentQuests)
+            {
+                if (q.Value.quest.complete && giver.GetInstanceID() == q.Value.giver.GetInstanceID())
+                {
+                    Debug.Log(q.Value.quest.completionText);
+                    _currentQuests.Remove(q.Key);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Input callbacks
         public void Move(InputAction.CallbackContext context)
         {
@@ -145,8 +228,13 @@ namespace Player
             if (_nearestInteractable && context.action.triggered && context.ReadValue<float>() > 0)
             {
                 NPC.Interactable interactScript = _nearestInteractable.GetComponent<NPC.Interactable>();
-                Debug.Log(interactScript);
-                interactScript.OnInteract();
+                if (interactScript != null)
+                {
+                    if (!TryHandInQuest(_nearestInteractable))
+                    {
+                        interactScript.OnInteract(gameObject);
+                    }
+                }
             }
         }
 

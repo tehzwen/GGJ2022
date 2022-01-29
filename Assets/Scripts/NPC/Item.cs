@@ -17,9 +17,16 @@ namespace NPC
 
         }
 
-        public override void OnInteract()
+        public override void OnInteract(GameObject other)
         {
-            Debug.Log("You interacted with me!");
+            Player.Controller playerScript = other.GetComponent<Player.Controller>();
+
+            if (playerScript != null)
+            {
+                playerScript.AddItemToInventory(this.name);
+                // now we can cease to exist 
+                Destroy(gameObject);
+            }
         }
 
         public override void OnEndInteract()

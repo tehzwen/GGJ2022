@@ -6,7 +6,7 @@ namespace NPC
 {
     interface IInteractable
     {
-        void OnInteract();
+        void OnInteract(GameObject other);
         void OnEndInteract();
         void Prompt();
         void ClosePrompt();
@@ -14,7 +14,7 @@ namespace NPC
 
     public abstract class Interactable : MonoBehaviour, IInteractable
     {
-        public abstract void OnInteract();
+        public abstract void OnInteract(GameObject other);
 
         public abstract void OnEndInteract();
 
