@@ -130,9 +130,13 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 453931802232753590, guid: 51f7647018aef04449274416f2e313eb, type: 3}
+      propertyPath: name
+      value: BobCane
+      objectReference: {fileID: 0}
     - target: {fileID: 5178504886970158358, guid: 51f7647018aef04449274416f2e313eb, type: 3}
       propertyPath: m_Name
-      value: TestInteractable-item
+      value: BobCane
       objectReference: {fileID: 0}
     - target: {fileID: 5178504886970158359, guid: 51f7647018aef04449274416f2e313eb, type: 3}
       propertyPath: m_SortingOrder

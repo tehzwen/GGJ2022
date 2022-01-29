@@ -17,7 +17,7 @@ namespace NPC
         public float Damage;
         public string Name;
         public float MoveSpeed;
-
+        public Dialogue.Days dialogueData;
         private float _health;
         private float _maxHealth;
         public NPC(string name, Vector2 location, float damage, float moveSpeed)
@@ -28,8 +28,44 @@ namespace NPC
             this.HomeLocation = location;
             this.Damage = damage;
             this.MoveSpeed = moveSpeed;
+            this.dialogueData = Dialogue.JSONReader.ReadDialogueFile(this.Name);
         }
 
+        public string GetGreeting(int day)
+        {
+            return this.dialogueData.days[day].GetGreeting();
+        }
+
+        public bool HasQuest(int index)
+        {
+            // hardcode the day to 0 for now since days not implemented
+            foreach (Dialogue.Quest quest in this.dialogueData.days[0].quests)
+            {
+                // Debug.Log(string.Format("herre {0}", quest));
+                if (!quest.complete && !quest.started)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public Dialogue.Quest GetQuest()
+        {
+            Dialogue.Quest temp = this.dialogueData.days[0].quests[0]; // won't matter since we check if any are available so return is just there for compiler
+
+            // hardcode the day to 0 for now since days not implemented
+            foreach (Dialogue.Quest quest in this.dialogueData.days[0].quests)
+            {
+                if (!quest.complete && !quest.started)
+                {
+                    quest.started = true;
+                    return quest;
+                }
+            }
+            return temp;
+        }
         public float Health { get => _health; set => _health = value; }
         public float MaxHealth { get => _maxHealth; set => _maxHealth = value; }
 
@@ -46,6 +82,7 @@ namespace NPC
         private UnityEngine.AI.NavMeshAgent _agent;
         void Start()
         {
+            this.npc = new NPC(npc.Name, npc.HomeLocation, npc.Damage, npc.MoveSpeed);
             _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
             _agent.speed = npc.MoveSpeed;
             _agent.updateRotation = false;
@@ -111,12 +148,29 @@ namespace NPC
         }
 
         // Interactions
-        public override void OnInteract()
+        public override void OnInteract(GameObject other)
         {
-            Debug.Log(string.Format("You interacted with {0}!", this.npc.Name));
+            // Debug.Log(string.Format("You interacted with {0}!", this.npc.Name));
             // For now lets just set a random position for the npc to move to for testing purposes
+
+            // we can make the npc do all sorts of things here when we interact
             // this.MoveTo(new Vector2(Random.value * 50, Random.value * 50));
-            this.Attack(player);
+            // this.Attack(player);
+
+            // check if day and has a quest then we can give
+            if (npc.HasQuest(0))
+            {
+                Player.Controller playerScript = other.GetComponent<Player.Controller>();
+
+                if (playerScript != null)
+                {
+                    playerScript.GetQuest(gameObject, this.npc.GetQuest());
+                }
+            }
+            else
+            {
+                Debug.Log(this.npc.GetGreeting(0));
+            }
         }
 
         public override void OnEndInteract()
@@ -127,6 +181,10 @@ namespace NPC
         public override void Prompt()
         {
             // can add a button prompt here ("Press e")
+            if (this.npc.HasQuest(0))
+            {
+                // we can put a marker over them or something?
+            }
         }
         public override void ClosePrompt()
         {

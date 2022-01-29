@@ -16,7 +16,7 @@ namespace NPC
 
         }
 
-        public override void OnInteract()
+        public override void OnInteract(GameObject other)
         {
             Debug.Log("You interacted with me!");
         }
