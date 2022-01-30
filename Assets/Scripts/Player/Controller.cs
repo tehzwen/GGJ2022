@@ -11,29 +11,49 @@ namespace Player
         BEAST
     }
 
-    public class Controller : MonoBehaviour, Combat.IDamageable
+    public class Controller : MonoBehaviour, Combat.IAttacker, Combat.INightEffected
     {
         public float MoveSpeed = 0.5f;
         public float CameraOffset = 2.0f;
+        public float Damage = 25.0f;
+        public float AttackRange = 2.0f;
+        public float AttackCooldown = 1.0f;
+        public float WolfSpeed;
         public Camera MainCamera;
         private float _health; // we will use a percentage here since changing value depending on mode
         private float _maxHealth;
+        private bool _onCooldown = false;
         private Mode _mode;
         private Vector2 _currentMove;
         private Dictionary<int, GameObject> _currentInteractables;
         private Dictionary<string, QuestReception> _currentQuests;
+        private Dictionary<string, Relationship> _npcRelationships;
         private List<string> _inventory;
+        private GameObject _target;
+        private float _originalCameraOffset;
         private GameObject _nearestInteractable;
+        private UnityEngine.AI.NavMeshAgent _agent;
+
         void Start()
         {
+            _originalCameraOffset = CameraOffset;
+            _npcRelationships = new Dictionary<string, Relationship>();
             _currentInteractables = new Dictionary<int, GameObject>();
             _currentQuests = new Dictionary<string, QuestReception>();
             _inventory = new List<string>();
             _health = 1.0f;
             _mode = Mode.HUMAN;
+            _CreateNPCRelationships();
+            _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+            _agent.updateRotation = false;
+            _agent.updateUpAxis = false;
+            _agent.enabled = false;
+            _agent.speed = WolfSpeed;
         }
+
         void Update()
         {
+
             Bounds cameraBounds = Extensions.CameraExtensions.OrthographicBounds(MainCamera);
 
             // check if player is within the bounds first
@@ -49,32 +69,55 @@ namespace Player
             Vector2 moveVelocity = (MoveSpeed * Time.deltaTime) * _currentMove;
             transform.position += new Vector3(moveVelocity.x, moveVelocity.y, 0.0f);
 
-
-            // We iterate over all interactable objects and open the prompt for the nearest one
-            // which allows us to interact with the closest interactable object
-
-            float distance = Mathf.Infinity;
-            _nearestInteractable = null;
-
-            foreach (KeyValuePair<int, GameObject> entry in _currentInteractables)
+            if (_mode == Mode.HUMAN)
             {
-                float tempDistance = Vector3.Distance(transform.position, entry.Value.transform.position);
-                if (tempDistance < distance)
+                // We iterate over all interactable objects and open the prompt for the nearest one
+                // which allows us to interact with the closest interactable object
+
+                float distance = Mathf.Infinity;
+                _nearestInteractable = null;
+
+                foreach (KeyValuePair<int, GameObject> entry in _currentInteractables)
                 {
-                    distance = tempDistance;
-                    _nearestInteractable = entry.Value;
+                    float tempDistance = Vector3.Distance(transform.position, entry.Value.transform.position);
+                    if (tempDistance < distance)
+                    {
+                        distance = tempDistance;
+                        _nearestInteractable = entry.Value;
+                    }
+                    NPC.Interactable interactScript = entry.Value.GetComponent<NPC.Interactable>();
+                    interactScript.ClosePrompt();
                 }
-                NPC.Interactable interactScript = entry.Value.GetComponent<NPC.Interactable>();
-                interactScript.ClosePrompt();
-            }
 
-            if (_nearestInteractable != null)
+                if (_nearestInteractable != null)
+                {
+                    NPC.Interactable interactScript = _nearestInteractable.GetComponent<NPC.Interactable>();
+                    interactScript.Prompt();
+                }
+
+                QuestUpdate(); // checks for any quests that are complete
+            }
+            else
             {
-                NPC.Interactable interactScript = _nearestInteractable.GetComponent<NPC.Interactable>();
-                interactScript.Prompt();
-            }
+                if (_target)
+                {
+                    // add logic for beast AI here
+                    float targetDistance = Vector3.Distance(_target.transform.position, transform.position);
 
-            QuestUpdate(); // checks for any quests that are complete
+                    if (targetDistance <= AttackRange && !_onCooldown)
+                    {
+                        this.Attack(_target);
+                    }
+                    else
+                    {
+                        _agent.SetDestination(_target.transform.position);
+                    }
+                }
+                else
+                {
+                    _FindNewTarget();
+                }
+            }
         }
 
         private float _getMaxHealth()
@@ -105,39 +148,40 @@ namespace Player
 
         public void Attack(GameObject other)
         {
-
-        }
-
-        public bool TakeDamage(float damage)
-        {
-            if (this.Health() - damage <= 0.0f)
+            if (!_onCooldown)
             {
-                _health = 0.0f;
-                return true;
-            }
-            else
-            {
-                _health = (this.Health() - damage) / this._getMaxHealth();
-                return false;
-            }
-        }
+                Combat.IDamageable damageAbleScript = other.GetComponent<Combat.IDamageable>();
+                Debug.Log(string.Format("Attacked {0}", other));
 
-        public void Heal(float amount)
-        {
-            if (this.Health() + amount < this._getMaxHealth())
-            {
-                _health = (this.Health() + amount) / this._getMaxHealth();
-            }
-            else
-            {
-                _health = this._getMaxHealth();
-            }
-        }
+                if (damageAbleScript != null)
+                {
+                    // check the type
+                    if (damageAbleScript.GetAttackableType() == Combat.AttackableType.NPC)
+                    {
+                        NPC.Controller npcScript = other.GetComponent<NPC.Controller>();
+                        if (!damageAbleScript.TakeDamage(Damage))
+                        {
+                            _npcRelationships.Remove(npcScript.npc.Name);
+                            damageAbleScript.OnDeath();
+                            _FindNewTarget();
+                        }
+                        else
+                        {
+                            npcScript.Stop(0.3f);
+                        }
+                    }
+                    else if (damageAbleScript.GetAttackableType() == Combat.AttackableType.BARRICADE)
+                    {
+                        if (!damageAbleScript.TakeDamage(Damage))
+                        {
+                            _agent.speed = WolfSpeed;
+                            damageAbleScript.OnDeath();
+                        }
+                    }
+                }
+                StartCoroutine(SetTimeout(AttackCooldown));
 
-        public void OnDeath()
-        {
-            Debug.Log("I died!");
-            //end game?
+            }
         }
 
         // Quests & dialogue
@@ -236,6 +280,11 @@ namespace Player
                     }
                 }
             }
+            else
+            {
+                // test case manually trigger night time activity
+                OnNightFall();
+            }
         }
 
         // Collision trigger events
@@ -258,6 +307,84 @@ namespace Player
                 interactScript.ClosePrompt();
                 _currentInteractables.Remove(other.gameObject.GetInstanceID());
             }
+        }
+
+        private void OnCollisionStay2D(Collision2D other)
+        {
+            NPC.Barricade barricadeScript = other.gameObject.GetComponent<NPC.Barricade>();
+            Debug.Log(other.gameObject);
+
+            if (barricadeScript != null)
+            {
+                _agent.speed = 0.0f;
+                this.Attack(other.gameObject);
+            }
+        }
+
+        private void _CreateNPCRelationships()
+        {
+            GameObject[] interactObjects = Extensions.Tagging.GetObjectsByTag(Extensions.Tag.INTERACTABLE);
+
+            foreach (GameObject o in interactObjects)
+            {
+                NPC.Controller npcScript = o.GetComponent<NPC.Controller>();
+
+                if (npcScript != null && !_npcRelationships.ContainsKey(npcScript.npc.Name))
+                {
+                    _npcRelationships.Add(npcScript.npc.Name, new Relationship(o));
+                }
+            }
+        }
+
+        public void OnNightEnd()
+        {
+            CameraOffset = _originalCameraOffset;
+            _target = null;
+            _mode = Mode.HUMAN;
+            _agent.enabled = false;
+        }
+
+        public void OnNightFall()
+        {
+            // fire logic for picking npc targets
+            CameraOffset = 8.0f;
+            _FindNewTarget();
+            Debug.Log(_target);
+            _mode = Mode.BEAST;
+            _agent.enabled = true;
+        }
+
+        private void _FindNewTarget()
+        {
+            float value = Mathf.Infinity;
+            string key = "";
+
+            // lets choose our target based off of distance and friendliness
+            foreach (KeyValuePair<string, Relationship> relation in _npcRelationships)
+            {
+                float tempDistance = Vector3.Distance(relation.Value.npc.transform.position, transform.position);
+                float tempValue = tempDistance + relation.Value.Friendliness;
+
+                // get npc script
+                NPC.Controller tempController = relation.Value.npc.GetComponent<NPC.Controller>();
+                if (tempController.npc.IsAlive() && tempValue < value)
+                {
+                    value = tempValue;
+                    key = relation.Key;
+                }
+            }
+
+            if (_npcRelationships.ContainsKey(key))
+            {
+                _target = _npcRelationships[key].npc;
+            }
+        }
+
+        private IEnumerator SetTimeout(float time)
+        {
+            _onCooldown = true;
+            yield return new WaitForSeconds(time);
+            _onCooldown = false;
         }
     }
 }
