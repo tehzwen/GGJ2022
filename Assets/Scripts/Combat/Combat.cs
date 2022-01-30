@@ -11,4 +11,10 @@ namespace Combat
         void OnDeath();
         void Attack(GameObject other);
     }
+
+    interface INightEffected
+    {
+        void OnNightFall();
+        void OnNightEnd();
+    }
 }

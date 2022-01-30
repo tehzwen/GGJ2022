@@ -7,6 +7,7 @@ namespace NPC
     interface INPC
     {
         void MoveTo(Vector2 position);
+        void Stop(float stopTime);
         void ReturnHome();
     }
 
@@ -71,15 +72,17 @@ namespace NPC
 
         public bool IsAlive()
         {
-            return this.Health <= 0.0f;
+            return this.Health > 0.0f;
         }
     }
 
-    public class Controller : Interactable, INPC, Combat.IDamageable
+    public class Controller : Interactable, INPC, Combat.IDamageable, Combat.INightEffected
     {
         public NPC npc;
         public GameObject player;
+        public float sight;
         private UnityEngine.AI.NavMeshAgent _agent;
+        private bool _onAlert = true;
         void Start()
         {
             this.npc = new NPC(npc.Name, npc.HomeLocation, npc.Damage, npc.MoveSpeed);
@@ -91,12 +94,24 @@ namespace NPC
 
         void Update()
         {
+            if (_onAlert)
+            {
+                float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
 
+                if (distanceToPlayer <= sight)
+                {
+                    Vector3 difference = transform.position - player.transform.position;
+                    difference *= 2.0f;
+                    MoveTo(new Vector2(difference.x, difference.y));
+                }
+            }
         }
 
         public void OnDeath()
         {
             Debug.Log("I died!");
+            StopAllCoroutines();
+            Destroy(gameObject);
         }
 
         public void Attack(GameObject other)
@@ -119,6 +134,11 @@ namespace NPC
         {
             Debug.Log(string.Format("Going to move to {0}", position));
             _agent.SetDestination(position);
+        }
+
+        public void Stop(float stopTime)
+        {
+            StartCoroutine(StopWait(stopTime));
         }
 
         public void ReturnHome()
@@ -189,6 +209,28 @@ namespace NPC
         public override void ClosePrompt()
         {
             // remove the prompt
+        }
+
+        // Night logic
+        public void OnNightFall()
+        {
+            // implement running away/barricading from player
+            _onAlert = true;
+        }
+
+        public void OnNightEnd()
+        {
+            // resume old behavior/fix up stuff
+
+
+        }
+
+        private IEnumerator StopWait(float stopTime)
+        {
+            float oldSpeed = _agent.speed;
+            _agent.speed = 0.0f;
+            yield return new WaitForSeconds(stopTime);
+            _agent.speed = oldSpeed;
         }
     }
 }

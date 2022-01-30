@@ -1,0 +1,27 @@
+{
+  "days": [
+    {
+      "dayNumber": 0,
+      "greetings": [
+        "Hey friend",
+        "Hallo",
+        "Yeehaw partner"
+      ],
+      "quests": [
+        {
+          "name": "Get That Cane!",
+          "completionText": "Thank you so much, this will really help!",
+          "stages": [
+            {
+              "dialogue": "I need you to go get my walking stick from the farm. It would really put a smile on my face! The farm is due south!",
+              "task": {
+                "type": 0,
+                "objectName": "BobCane"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
