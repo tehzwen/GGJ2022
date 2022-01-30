@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class ClockUI : MonoBehaviour
 {
+
+    public TimerController timerController;
     private const float REAL_SECONDS_PER_INGAME_DAY = 5f;
 
     private Transform clockHandTransform;
