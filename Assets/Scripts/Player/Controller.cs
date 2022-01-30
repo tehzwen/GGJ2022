@@ -11,7 +11,7 @@ namespace Player
         BEAST
     }
 
-    public class Controller : MonoBehaviour, Combat.IDamageable, Combat.INightEffected
+    public class Controller : MonoBehaviour, Combat.IAttacker, Combat.INightEffected
     {
         public float MoveSpeed = 0.5f;
         public float CameraOffset = 2.0f;
@@ -107,7 +107,6 @@ namespace Player
                     if (targetDistance <= AttackRange && !_onCooldown)
                     {
                         this.Attack(_target);
-                        StartCoroutine(SetTimeout(AttackCooldown));
                     }
                     else
                     {
@@ -149,54 +148,40 @@ namespace Player
 
         public void Attack(GameObject other)
         {
-            NPC.Controller npcScript = other.GetComponent<NPC.Controller>();
-            Debug.Log(string.Format("Attacked! Health {0}", npcScript.npc.Health));
-
-            if (npcScript != null)
+            if (!_onCooldown)
             {
-                if (!npcScript.TakeDamage(Damage))
+                Combat.IDamageable damageAbleScript = other.GetComponent<Combat.IDamageable>();
+                Debug.Log(string.Format("Attacked {0}", other));
+
+                if (damageAbleScript != null)
                 {
-                    _npcRelationships.Remove(npcScript.npc.Name);
-                    npcScript.OnDeath();
-                    _FindNewTarget();
+                    // check the type
+                    if (damageAbleScript.GetAttackableType() == Combat.AttackableType.NPC)
+                    {
+                        NPC.Controller npcScript = other.GetComponent<NPC.Controller>();
+                        if (!damageAbleScript.TakeDamage(Damage))
+                        {
+                            _npcRelationships.Remove(npcScript.npc.Name);
+                            damageAbleScript.OnDeath();
+                            _FindNewTarget();
+                        }
+                        else
+                        {
+                            npcScript.Stop(0.3f);
+                        }
+                    }
+                    else if (damageAbleScript.GetAttackableType() == Combat.AttackableType.BARRICADE)
+                    {
+                        if (!damageAbleScript.TakeDamage(Damage))
+                        {
+                            _agent.speed = WolfSpeed;
+                            damageAbleScript.OnDeath();
+                        }
+                    }
                 }
-                else
-                {
-                    npcScript.Stop(0.3f);
-                }
-            }
-        }
+                StartCoroutine(SetTimeout(AttackCooldown));
 
-        public bool TakeDamage(float damage)
-        {
-            if (this.Health() - damage <= 0.0f)
-            {
-                _health = 0.0f;
-                return true;
             }
-            else
-            {
-                _health = (this.Health() - damage) / this._getMaxHealth();
-                return false;
-            }
-        }
-
-        public void Heal(float amount)
-        {
-            if (this.Health() + amount < this._getMaxHealth())
-            {
-                _health = (this.Health() + amount) / this._getMaxHealth();
-            }
-            else
-            {
-                _health = this._getMaxHealth();
-            }
-        }
-
-        public void OnDeath()
-        {
-            Debug.Log("I died!");
-            //end game?
         }
 
         // Quests & dialogue
@@ -321,6 +306,18 @@ namespace Player
                 NPC.Interactable interactScript = other.gameObject.GetComponent<NPC.Interactable>();
                 interactScript.ClosePrompt();
                 _currentInteractables.Remove(other.gameObject.GetInstanceID());
+            }
+        }
+
+        private void OnCollisionStay2D(Collision2D other)
+        {
+            NPC.Barricade barricadeScript = other.gameObject.GetComponent<NPC.Barricade>();
+            Debug.Log(other.gameObject);
+
+            if (barricadeScript != null)
+            {
+                _agent.speed = 0.0f;
+                this.Attack(other.gameObject);
             }
         }
 

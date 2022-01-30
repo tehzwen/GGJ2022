@@ -83,6 +83,7 @@ namespace NPC
         public float sight;
         private UnityEngine.AI.NavMeshAgent _agent;
         private bool _onAlert = true;
+        private LayerMask _rayCastMask;
         void Start()
         {
             this.npc = new NPC(npc.Name, npc.HomeLocation, npc.Damage, npc.MoveSpeed);
@@ -90,19 +91,37 @@ namespace NPC
             _agent.speed = npc.MoveSpeed;
             _agent.updateRotation = false;
             _agent.updateUpAxis = false;
+            _rayCastMask = LayerMask.GetMask("Raycastable");
+
         }
 
         void Update()
         {
             if (_onAlert)
             {
-                float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
+                RaycastHit2D[] hits;
+                hits = Physics2D.RaycastAll(transform.position, player.transform.position - transform.position, sight, _rayCastMask);
 
-                if (distanceToPlayer <= sight)
+                if (hits.Length == 2)
                 {
-                    Vector3 difference = transform.position - player.transform.position;
-                    difference *= 2.0f;
-                    MoveTo(new Vector2(difference.x, difference.y));
+                    bool canSeePlayer = true;
+
+                    for (int i = 0; i < hits.Length; i++)
+                    {
+                        if (hits[i].collider.gameObject != player)
+                        {
+                            canSeePlayer = false;
+                            break;
+                        }
+                    }
+
+                    if (canSeePlayer)
+                    {
+                        //we hit the player
+                        Vector3 difference = transform.position - player.transform.position;
+                        difference *= 1.2f;
+                        MoveTo(new Vector2(difference.x, difference.y));
+                    }
                 }
             }
         }
@@ -114,26 +133,20 @@ namespace NPC
             Destroy(gameObject);
         }
 
-        public void Attack(GameObject other)
-        {
-            Debug.Log(string.Format("I attacked {0}", other));
-            Combat.IDamageable damageScript = other.GetComponent<Combat.IDamageable>();
-
-            if (damageScript != null)
-            {
-                Debug.Log("Attacked!");
-                damageScript.TakeDamage(this.npc.Damage);
-            }
-            else
-            {
-                Debug.Log("Error!");
-            }
-        }
-
         public void MoveTo(Vector2 position)
         {
-            Debug.Log(string.Format("Going to move to {0}", position));
+            // Debug.Log(string.Format("Going to move to {0}", position));
             _agent.SetDestination(position);
+        }
+
+        void OnDrawGizmos()
+        {
+            if (_onAlert && Application.isPlaying)
+            {
+                // Draws a blue line from this transform to the target
+                Gizmos.color = Color.blue;
+                Gizmos.DrawLine(transform.position, _agent.destination);
+            }
         }
 
         public void Stop(float stopTime)
@@ -152,6 +165,11 @@ namespace NPC
             // can play dialogue for takign damage along with sound/blood sprite
             this.npc.Health -= damage;
             return this.npc.IsAlive();
+        }
+
+        public Combat.AttackableType GetAttackableType()
+        {
+            return Combat.AttackableType.NPC;
         }
 
         public void Heal(float amount)

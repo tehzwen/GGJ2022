@@ -9,59 +9,59 @@ public class GameManager : MonoBehaviour
 
     public GameState State;
 
-	public static event Action<GameState> OnGameStateChanged;
+    public static event Action<GameState> OnGameStateChanged;
 
-	private void Awake()
-	{
+    private void Awake()
+    {
         Instance = this;
-	}
+    }
 
-	// Start is called before the first frame update
-	void Start()
-	{
-		UpdateGameState(GameState.Menu);
-	}
+    // Start is called before the first frame update
+    void Start()
+    {
+        UpdateGameState(GameState.Menu);
+    }
 
-	public void UpdateGameState(GameState newState)
-	{
-		State = newState;
-		switch (newState)
-		{
-			case GameState.Menu:
-				MenuHandleSelection();
-				break;
-			case GameState.DayCycle:
-				break;
-			case GameState.NightCycle:
-				break;
-			case GameState.EndGame:
-				break;
-			default:
-				throw new ArgumentOutOfRangeException(nameof(newState), newState, null);
-		}
+    public void UpdateGameState(GameState newState)
+    {
+        State = newState;
+        switch (newState)
+        {
+            case GameState.Menu:
+                MenuHandleSelection();
+                break;
+            case GameState.DayCycle:
+                break;
+            case GameState.NightCycle:
+                break;
+            case GameState.EndGame:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(newState), newState, null);
+        }
 
-		OnGameStateChanged?.Invoke(newState);
-	}
+        OnGameStateChanged?.Invoke(newState);
+    }
 
-	private void MenuHandleSelection()
-	{
+    private void MenuHandleSelection()
+    {
 
-	}
+    }
 
 
 
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 
 }
 
 public enum GameState
 {
-	Menu,
-	DayCycle,
-	NightCycle,
-	EndGame
+    Menu,
+    DayCycle,
+    NightCycle,
+    EndGame
 }
