@@ -10,7 +10,6 @@ public class TimerController : MonoBehaviour
 
     public TimeSpan timePlaying;
     public Time timeofDay;
-
     private bool timerGoing;
     private float elapsedTime;
 
@@ -21,53 +20,57 @@ public class TimerController : MonoBehaviour
     [SerializeField] public float daySpeed = 60f; //60f means 1 second == 1 hour in game
 
     private void Awake()
-	{
+    {
         instance = this;
-	}
-	void Start()
+    }
+    void Start()
     {
         timeCounter.text = "Time: 00:00.00";
         timerGoing = false;
     }
 
     public void BeginTimer() //call via TimerController.instance.BeginTimer() in gameController
-	{
+    {
         timerGoing = true;
         elapsedTime = 0f;
         StartCoroutine(UpdateTimer());
-	}
+    }
 
     public void EndTimer()
-	{
+    {
         timerGoing = false;
-	}
+    }
 
     private IEnumerator UpdateTimer()
-	{
-		while (timerGoing)
-		{
+    {
+        while (timerGoing)
+        {
             elapsedTime += Time.deltaTime * daySpeed;
 
             timePlaying = TimeSpan.FromSeconds(elapsedTime);
             string timePlayingStr = "Time: " + timePlaying.ToString(@"dd\.hh\:mm\:ss");
             timeCounter.text = timePlayingStr;
             yield return null;
-		}
-	}
+        }
+    }
 
     public TimeSpan GetTimePlaying()
-	{
+    {
         return this.timePlaying;
-	}
+    }
 
     public float GetHour()
-	{
-        return elapsedTime / 3600;
-	}
+    {
+        return (elapsedTime - (GetDay() * 86400f)) / 3600;
+    }
 
     public float GetMinute()
-	{
-        return elapsedTime / 60;
-	}
+    {
+        return (elapsedTime - (GetDay() * 86400f)) / 60;
+    }
 
+    public int GetDay()
+    {
+        return (int)Mathf.Floor(elapsedTime / 86400f);
+    }
 }

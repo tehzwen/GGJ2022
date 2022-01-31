@@ -84,15 +84,18 @@ namespace NPC
         private UnityEngine.AI.NavMeshAgent _agent;
         private bool _onAlert = true;
         private LayerMask _rayCastMask;
-        void Start()
+
+        void Awake()
         {
-            this.npc = new NPC(npc.Name, npc.HomeLocation, npc.Damage, npc.MoveSpeed);
+            this.npc = new NPC(npc.Name, new Vector2(transform.position.x, transform.position.y), npc.Damage, npc.MoveSpeed);
             _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
             _agent.speed = npc.MoveSpeed;
             _agent.updateRotation = false;
             _agent.updateUpAxis = false;
+        }
+        void Start()
+        {
             _rayCastMask = LayerMask.GetMask("Raycastable");
-
         }
 
         void Update()
@@ -239,8 +242,8 @@ namespace NPC
         public void OnNightEnd()
         {
             // resume old behavior/fix up stuff
-
-
+            _onAlert = false;
+            MoveTo(this.npc.HomeLocation);
         }
 
         private IEnumerator StopWait(float stopTime)

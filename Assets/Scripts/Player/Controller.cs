@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
 namespace Player
@@ -20,6 +21,10 @@ namespace Player
         public float AttackCooldown = 1.0f;
         public float WolfSpeed;
         public Camera MainCamera;
+        public Vector3 HomeLocation;
+        public Image DarknessOverlay;
+        public delegate void OverlayDelegate();
+        private float _overlayFade = 0.05f;
         private float _health; // we will use a percentage here since changing value depending on mode
         private float _maxHealth;
         private bool _onCooldown = false;
@@ -34,6 +39,12 @@ namespace Player
         private GameObject _nearestInteractable;
         private UnityEngine.AI.NavMeshAgent _agent;
 
+        void Awake()
+        {
+            _originalCameraOffset = CameraOffset;
+            _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        }
+
         void Start()
         {
             _originalCameraOffset = CameraOffset;
@@ -44,7 +55,6 @@ namespace Player
             _health = 1.0f;
             _mode = Mode.HUMAN;
             _CreateNPCRelationships();
-            _agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
             _agent.updateRotation = false;
             _agent.updateUpAxis = false;
             _agent.enabled = false;
@@ -66,11 +76,13 @@ namespace Player
                     (MoveSpeed + 0.2f) * Time.deltaTime);
             }
 
-            Vector2 moveVelocity = (MoveSpeed * Time.deltaTime) * _currentMove;
-            transform.position += new Vector3(moveVelocity.x, moveVelocity.y, 0.0f);
+
 
             if (_mode == Mode.HUMAN)
             {
+                Vector2 moveVelocity = (MoveSpeed * Time.deltaTime) * _currentMove;
+                transform.position += new Vector3(moveVelocity.x, moveVelocity.y, 0.0f);
+
                 // We iterate over all interactable objects and open the prompt for the nearest one
                 // which allows us to interact with the closest interactable object
 
@@ -283,7 +295,7 @@ namespace Player
             else
             {
                 // test case manually trigger night time activity
-                OnNightFall();
+                // OnNightFall();
             }
         }
 
@@ -311,13 +323,30 @@ namespace Player
 
         private void OnCollisionStay2D(Collision2D other)
         {
-            NPC.Barricade barricadeScript = other.gameObject.GetComponent<NPC.Barricade>();
-            Debug.Log(other.gameObject);
-
-            if (barricadeScript != null)
+            if (_mode == Mode.BEAST)
             {
-                _agent.speed = 0.0f;
-                this.Attack(other.gameObject);
+                NPC.Barricade barricadeScript = other.gameObject.GetComponent<NPC.Barricade>();
+                Debug.Log(other.gameObject);
+
+                if (barricadeScript != null)
+                {
+                    _agent.speed = 0.0f;
+                    this.Attack(other.gameObject);
+                }
+            }
+        }
+
+        private void OnCollisionExit2D(Collision2D other)
+        {
+            if (_mode == Mode.BEAST)
+            {
+                NPC.Barricade barricadeScript = other.gameObject.GetComponent<NPC.Barricade>();
+                Debug.Log(other.gameObject);
+
+                if (barricadeScript != null)
+                {
+                    _agent.speed = WolfSpeed;
+                }
             }
         }
 
@@ -336,22 +365,42 @@ namespace Player
             }
         }
 
-        public void OnNightEnd()
+        private void _EndNight()
         {
             CameraOffset = _originalCameraOffset;
             _target = null;
             _mode = Mode.HUMAN;
+            _agent.speed = 0.0f;
             _agent.enabled = false;
         }
 
-        public void OnNightFall()
+        public void OnNightEnd()
+        {
+            // this is still buggy so leaving it out
+            // OverlayDelegate method = _EndNight;
+            // // have the character get teleported to home position
+            // StartCoroutine(FadeToBlack(method));
+            _EndNight();
+        }
+
+        private void _StartNight()
         {
             // fire logic for picking npc targets
             CameraOffset = 8.0f;
             _FindNewTarget();
             Debug.Log(_target);
             _mode = Mode.BEAST;
+            _agent.speed = WolfSpeed;
             _agent.enabled = true;
+        }
+
+        public void OnNightFall()
+        {
+            // this is still buggy so leaving it out
+            // OverlayDelegate method = _StartNight;
+            // // have the character get teleported to home position
+            // StartCoroutine(FadeToBlack(method));
+            _StartNight();
         }
 
         private void _FindNewTarget()
@@ -385,6 +434,42 @@ namespace Player
             _onCooldown = true;
             yield return new WaitForSeconds(time);
             _onCooldown = false;
+        }
+
+        private IEnumerator FadeToBlack(OverlayDelegate method)
+        {
+            var tempColor = DarknessOverlay.color;
+
+            while (tempColor.a <= 1.2f)
+            {
+                if (tempColor.a >= 1.0)
+                {
+                    transform.position = HomeLocation;
+                }
+
+                tempColor.a += _overlayFade;
+                DarknessOverlay.color = tempColor;
+                yield return new WaitForSeconds(_overlayFade);
+            }
+            StartCoroutine(WakeFromBlack(method));
+        }
+
+        private IEnumerator WakeFromBlack(OverlayDelegate method)
+        {
+            var tempColor = DarknessOverlay.color;
+
+            while (tempColor.a >= -0.2f)
+            {
+                if (tempColor.a <= 0.8f)
+                {
+                    transform.position = HomeLocation;
+                    method();
+                }
+
+                tempColor.a -= _overlayFade;
+                DarknessOverlay.color = tempColor;
+                yield return new WaitForSeconds(_overlayFade);
+            }
         }
     }
 }

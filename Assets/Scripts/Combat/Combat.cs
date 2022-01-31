@@ -9,7 +9,7 @@ namespace Combat
         BARRICADE,
         NPC
     }
-    interface IDamageable
+    public interface IDamageable
     {
         bool TakeDamage(float damage);
         void Heal(float amount);
@@ -17,12 +17,12 @@ namespace Combat
         AttackableType GetAttackableType();
     }
 
-    interface IAttacker
+    public interface IAttacker
     {
         void Attack(GameObject other);
     }
 
-    interface INightEffected
+    public interface INightEffected
     {
         void OnNightFall();
         void OnNightEnd();
