@@ -2,17 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering.Universal;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
-
     public GameState State;
-
     public static event Action<GameState> OnGameStateChanged;
-
     public TimerController timerController;
-
+    public Light2D GlobalLight;
+    public GameObject player;
     public float dayCycleStart = 5f;
     public float nightCycleStart = 19f;
 
@@ -39,9 +38,10 @@ public class GameManager : MonoBehaviour
                 MenuHandleSelection();
                 break;
             case GameState.DayCycle:
-
+                _OnNightEnd();
                 break;
             case GameState.NightCycle:
+                _OnNightFall();
                 break;
             case GameState.EndGame:
                 break;
@@ -50,6 +50,32 @@ public class GameManager : MonoBehaviour
         }
 
         OnGameStateChanged?.Invoke(newState);
+    }
+
+    private void _OnNightFall()
+    {
+        Player.Controller playerScript = player.GetComponent<Player.Controller>();
+        playerScript.OnNightFall();
+
+        Extensions.Finder.NightAffectedObject[] nightObjects = Extensions.Finder.GetNightAffectedObjects();
+
+        for (int i = 0; i < nightObjects.Length; i++)
+        {
+            nightObjects[i].NightScript.OnNightFall();
+        }
+    }
+
+    private void _OnNightEnd()
+    {
+        Player.Controller playerScript = player.GetComponent<Player.Controller>();
+        playerScript.OnNightEnd();
+
+        Extensions.Finder.NightAffectedObject[] nightObjects = Extensions.Finder.GetNightAffectedObjects();
+
+        for (int i = 0; i < nightObjects.Length; i++)
+        {
+            nightObjects[i].NightScript.OnNightEnd();
+        }
     }
 
     private void InitializeGame()
@@ -66,16 +92,32 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         float currHour = timerController.GetHour();
-        Debug.Log("Curr Hour: " + currHour);
-        Debug.Log("Cycle: " + State);
+        // Debug.Log(string.Format("Hour: {0}", currHour));
+        // Debug.Log("Current day: " + timerController.GetDay());
+        // Debug.Log("Cycle: " + State);
         if (State == GameState.DayCycle && currHour > nightCycleStart)
             UpdateGameState(GameState.NightCycle);
 
+        if (currHour > dayCycleStart && currHour < nightCycleStart)
+        {
+            if (State == GameState.NightCycle)
+            {
+                UpdateGameState(GameState.DayCycle);
+            }
+            else
+            {
+                float darknessFactor = Mathf.Abs(12.0f - currHour) / 12.0f;
 
-        if (State == GameState.NightCycle && (currHour > dayCycleStart && currHour < nightCycleStart))
-            UpdateGameState(GameState.DayCycle);
-
-
+                if (currHour > 12.0f)
+                {
+                    GlobalLight.intensity = ((12.0f + (12 - (currHour - 12.0f))) / 24.0f) - darknessFactor;
+                }
+                else
+                {
+                    GlobalLight.intensity = ((currHour + 12.0f) / 24.0f) - darknessFactor;
+                }
+            }
+        }
     }
 
     GameState GetGameState()
@@ -83,14 +125,31 @@ public class GameManager : MonoBehaviour
         return this.State;
     }
 
-    String GetGameTime()
+    public struct TimeRepr
     {
-        float hour = timerController.GetHour() % 24;
-        float minute = timerController.GetMinute() % 60;
+        public float Minute;
+        public float Hour;
+
+        public TimeRepr(TimerController timeController)
+        {
+            Hour = timeController.GetHour() % 24;
+            Minute = timeController.GetMinute() % 60;
+        }
+    }
+
+    public TimeRepr GetGameTimeValue()
+    {
+        return new TimeRepr(timerController);
+    }
+
+    public String GetGameTime()
+    {
+        TimeRepr time = GetGameTimeValue();
+        float hour = time.Hour;
+        float minute = time.Minute;
 
         return hour.ToString() + ":" + minute.ToString();
     }
-
 }
 
 public enum GameState

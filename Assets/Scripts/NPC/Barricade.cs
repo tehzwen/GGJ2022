@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace NPC
 {
-    public class Barricade : Interactable, Combat.IDamageable
+    public class Barricade : Interactable, Combat.IDamageable, Combat.INightEffected
     {
         private float _health = 150.0f;
         void Start()
@@ -58,6 +58,19 @@ namespace NPC
         public override void ClosePrompt()
         {
             Debug.Log("Not Sleepy time!");
+        }
+
+        public void OnNightFall()
+        {
+            Collider2D coll = GetComponent<Collider2D>();
+            coll.enabled = true;
+        }
+
+        public void OnNightEnd()
+        {
+            Collider2D coll = GetComponent<Collider2D>();
+            coll.enabled = false;
+            Debug.Log("Here!");
         }
     }
 }
